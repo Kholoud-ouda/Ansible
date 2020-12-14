@@ -1,0 +1,11 @@
+---
+- name: Ping hosts 
+  ping:
+
+- name: Gathering facts
+  setup:
+  register: test
+ 
+- name: Check the command output
+  debug:
+    var: test

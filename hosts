@@ -1,0 +1,18 @@
+[test]
+10.0.0.9 ## Please change it to your actual server IP
+
+[test:vars]
+ansible_connection=ssh
+ansible_ssh_user=ubuntu ## add your user
+ansible_ssh_private_key_file=./ssh.pem ## Path of the SSH KEY file 
+ansible_python_interpreter=/usr/bin/python3
+
+
+[manager]
+10.0.0.1
+
+[manager:vars]
+ansible_connection=ssh
+ansible_ssh_user=ubuntu
+ansible_ssh_private_key_file=./ssh.pem
+ansible_python_interpreter=/usr/bin/python3

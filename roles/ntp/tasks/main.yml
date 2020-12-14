@@ -1,0 +1,43 @@
+---
+- name: Install NTP
+  apt:
+    name: ntp
+
+- name: restart ntp
+  service:
+    name: ntp
+    state: restarted
+
+- name: add line to the end of the file
+  lineinfile:
+    path: /etc/ntp.conf
+    line: "pool ntp.ubuntu.com test"
+
+- name: Copy file with owner and permissions
+  copy:
+    src: ./files/hostname
+    dest: /etc/hostname
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Copy file with owner and permissions
+  template:
+    src: ./templates/hostname
+    dest: /etc/hostname
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Creating an empty file
+  file:
+    path: "/home/ubuntu/ansible_test"
+    state: touch
+
+- name: Check date output
+  command: date
+  register: time
+
+- name: print test
+  debug:
+    var: time
