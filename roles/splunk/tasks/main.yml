@@ -1,0 +1,83 @@
+--- 
+- name: Check if Splunk installed or not 
+  stat: 
+    path: /opt/splunkforwarder/bin/splunk
+  register: splunkforwarder
+
+- name: Stop Splunk service if exists
+  command: /opt/splunkforwarder/bin/splunk stop
+  when: splunkforwarder.stat.exists == True
+
+- name: Back Up Splunk Configuration
+  copy:
+    remote_src: yes
+    src: '/opt/splunkforwarder/etc/system/local'
+    dest: '/home/{{ SSHUser }}/SplukBackUp'
+  when: splunkforwarder.stat.exists == True
+
+- name: Copy Herbalife License if Splunk not installed 
+  copy:
+    src: './files/splunkclouduf.spl'
+    dest: '/home/{{ SSHUser }}/splunkclouduf.spl'
+  when: splunkforwarder.stat.exists == False
+ 
+- name: Copy Splunk Forwarder package 
+  copy:
+    src: './files/splunkforwarderLinux64V8.0.6.deb'
+    dest: '/home/{{ SSHUser }}/splunkforwarderLinux64{{ SplunkV }}.deb'
+  
+- name: Install Splunk Forwarder
+  command: dpkg -i /home/{{ SSHUser }}/splunkforwarderLinux64{{ SplunkV }}.deb
+
+- name: Copy admin user credentials
+  template:
+    src: './templates/adminAccountCredentials'
+    dest: '/opt/splunkforwarder/etc/system/local/user-seed.conf'
+  when: splunkforwarder.stat.exists == False
+
+- name: Accept Splunk license 
+  command: /opt/splunkforwarder/bin/splunk start --accept-license -u splunk --answer-yes
+
+- name: Enable Splunk service
+  command: /opt/splunkforwarder/bin/splunk enable boot-start
+  register: splunkEnable 
+  when: splunkforwarder.stat.exists == False
+
+- name: Enable Splunk command output
+  debug:
+    var: splunkEnable.stdout
+  when: splunkforwarder.stat.exists == False
+
+- name: Start Splunk service
+  command: /opt/splunkforwarder/bin/splunk start
+  when: splunkforwarder.stat.exists == False
+
+- name: Install Herbalife license
+  command: "/opt/splunkforwarder/bin/splunk install app /home/{{ SSHUser }}/splunkclouduf.spl -update 1 -auth {{ SPLUNKUSERNAME }}:{{ SPLUNKPASSWORD }} --accept-license --answer-yes"
+  register: splunkStatus
+  when: splunkforwarder.stat.exists == False
+
+- name: Status Splunk command output
+  debug:
+    var: splunkStatus.stdout
+  when: splunkforwarder.stat.exists == False
+
+- name: Restart Splunk service
+  command: /opt/splunkforwarder/bin/splunk restart
+  when: splunkforwarder.stat.exists == False
+
+- name: Check Splunk Version
+  command: "/opt/splunkforwarder/bin/splunk version"
+  register: splunkVersion
+
+- name: Print Splunk Version 
+  debug:
+    var: splunkVersion.stdout
+
+- name: Delete copied files 
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+     - /home/{{ SSHUser }}/splunkclouduf.spl 
+     - /home/{{ SSHUser }}/splunkforwarderLinux64{{ SplunkV }}.deb
