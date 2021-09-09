@@ -1,2 +1,2 @@
 # Ansible
-This repo is a simple repo to represent Ansible structure with simple examples 
+This repo is a simple repo to present Ansible structure with simple examples 
