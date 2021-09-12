@@ -1,0 +1,90 @@
+---
+- name: add sftp_user
+  user: 
+    name: "{{ SFTP_USER }}"
+    expires: -1
+    ## Hashed password using `openssl passwd -6 YOUR_PASSOWRD`
+    password: "{{ SFTP_PASS }}"
+    shell: /bin/bash
+
+- name: Create SFTP directroy owned by root
+  file: 
+    path: "{{ SFTP_Dir_Path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Create SFTP owned by SFTP_user
+  file: 
+    path: "{{ SFTP_Dir_Path }}/data"
+    state: directory
+    owner: "{{ SFTP_USER }}"
+    group: "{{ SFTP_USER }}"
+  ignore_errors: True
+
+- name: Copy SFTP Service account key to the user home dir 
+  copy: 
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}" 
+    owner: "{{ item.owner }}" 
+    group: "{{ item.group }}"
+  with_items:
+    - { src: "./files/sftp.json", dest: "/home/{{ SFTP_USER }}", owner: "{{ SFTP_USER }}", group: "{{ SFTP_USER }}" }
+    - { src: "./files/sftp.pem", dest: "/etc/ssl/private/glide.pem", owner: "root", group: "root" }
+
+  
+- name: Install  gcsfuse
+  shell: 'export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s` && 
+  echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | tee /etc/apt/sources.list.d/gcsfuse.list && 
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -'
+
+- name: Install required packages 
+  apt: 
+    name:
+    - vsftpd  
+    - gcsfuse
+    state: present
+    update_cache: yes
+
+- name: Mount dir to gcp bucket 
+  become: yes
+  become_user: suvicash_sftp
+  shell: "gcsfuse --key-file /home/{{ SFTP_USER }}/sftp.json {{ GCP_Bucket_Name }} {{ SFTP_Dir_Path }}/data"
+  ignore_errors: True
+ 
+- name: Copy condif file 
+  template: 
+    src: "./files/vsftpd.conf"
+    dest: /etc/
+    mode: '0644'
+    owner: root
+    group: root
+  tags: 
+    - conf
+
+- name: restart vsftpd
+  service:
+    name: vsftpd
+    state: restarted
+
+- name: add block of lines to a file.
+  tags: 
+  - block
+  blockinfile:
+    backup: yes
+    path: /etc/ssh/sshd_config
+    block: |
+      Match User {{ SFTP_USER }}
+      ForceCommand internal-sftp
+      PasswordAuthentication yes
+      ChrootDirectory {{ SFTP_Dir_Path }}
+      PermitTunnel no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      X11Forwarding no 
+
+- name: restart vsftpd
+  service:
+    name: sshd
+    state: restarted
