@@ -1,0 +1,14 @@
+---
+- name: SFTP Installation 
+  hosts: sftp
+  become: yes
+  vars:
+    SFTP_USER: ""
+    SFTP_PASS: "" ## Encrypted pass
+    GCP_Bucket_Name: ""
+    SFTP_Dir_Path: ""  
+  roles:
+    - ./roles/sftp
+
+
+  
